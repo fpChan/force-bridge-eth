@@ -13,17 +13,7 @@ use force_sdk::util::{parse_privkey_path, send_tx_sync};
 use log::debug;
 use serde::export::Clone;
 use serde::{Deserialize, Serialize};
-
-// tx_merkle_index == index in transactions merkle tree of the block
-#[derive(Clone, Default, Serialize, Deserialize, PartialEq, Eq, Hash, Debug)]
-pub struct CkbTxProof {
-    pub tx_merkle_index: u16,
-    pub block_number: u64,
-    pub block_hash: H256,
-    pub tx_hash: H256,
-    pub witnesses_root: H256,
-    pub lemmas: Vec<H256>,
-}
+use std::collections::HashSet;
 
 // tx_merkle_index == index in transactions merkle tree of the block
 #[derive(Clone, Default, Serialize, Deserialize, PartialEq, Eq, Hash, Debug)]
