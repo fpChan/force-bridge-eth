@@ -13,7 +13,6 @@ use force_sdk::util::{parse_privkey_path, send_tx_sync};
 use log::debug;
 use serde::export::Clone;
 use serde::{Deserialize, Serialize};
-use std::collections::HashSet;
 
 // tx_merkle_index == index in transactions merkle tree of the block
 #[derive(Clone, Default, Serialize, Deserialize, PartialEq, Eq, Hash, Debug)]
