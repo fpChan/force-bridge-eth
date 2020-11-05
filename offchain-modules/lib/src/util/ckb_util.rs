@@ -1,7 +1,7 @@
 use crate::util::eth_proof_helper::Witness;
 use crate::util::settings::{OutpointConf, Settings};
-use anyhow::{anyhow, Result};
-use ckb_sdk::{Address, GenesisInfo, HttpRpcClient};
+use anyhow::{anyhow, bail, Result};
+use ckb_sdk::{Address, AddressPayload, GenesisInfo, HttpRpcClient, SECP256K1};
 use ckb_types::core::{BlockView, DepType, TransactionView};
 use ckb_types::packed::{HeaderVec, ScriptReader, WitnessArgs};
 use ckb_types::prelude::{Builder, Entity, Pack, Reader};
@@ -16,8 +16,9 @@ use force_eth_types::generated::basic::BytesVec;
 use force_eth_types::generated::{basic, witness};
 use force_sdk::cell_collector::{collect_sudt_amount, get_live_cell_by_lockscript, get_live_cell_by_typescript};
 use force_sdk::indexer::{Cell, IndexerRpcClient};
-use force_sdk::tx_helper::TxHelper;
-use force_sdk::util::get_live_cell_with_cache;
+use force_sdk::tx_helper::{sign, TxHelper};
+use force_sdk::util::{get_live_cell_with_cache,send_tx_sync};
+use secp256k1::SecretKey;
 use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
 use std::str::FromStr;
@@ -30,7 +31,7 @@ pub fn make_ckb_transaction(_from_lockscript: Script) -> Result<TransactionView>
 pub struct Generator {
     pub rpc_client: HttpRpcClient,
     pub indexer_client: IndexerRpcClient,
-    _genesis_info: GenesisInfo,
+    genesis_info: GenesisInfo,
     pub settings: Settings,
 }
 
@@ -47,7 +48,7 @@ impl Generator {
         Ok(Self {
             rpc_client,
             indexer_client,
-            _genesis_info: genesis_info,
+            genesis_info,
             settings,
         })
     }
@@ -379,34 +380,16 @@ impl Generator {
         // add cellDeps
         {
             let outpoints = vec![
-                self._settings.bridge_lock_sctipt.outpoint.clone(),
+                self.settings.bridge_lock_sctipt.outpoint.clone(),
                 // self._settings.typescript.outpoint,
-                self._settings.sudt.outpoint.clone(),
+                self.settings.sudt.outpoint.clone(),
             ];
-            self._add_cell_deps(&mut helper, outpoints)?;
+            self.add_cell_deps(&mut helper, outpoints)?;
         }
 
-        // let bridge_lockscript_code_hash = hex::decode(&self._settings.bridge_lock_sctipt.code_hash)
-        //     .expect("wrong sudt_script code hash config");
-        //
-        // let bridge_lockscript: Script = Script::new_builder()
-        //     .code_hash(Byte32::from_slice(&bridge_lockscript_code_hash).unwrap())
-        //     .hash_type(DepType::Code.into())
-        //     .args(token_addr.as_bytes().pack())
-        //     .build();
-        //
-        // // 通过 type_script 校验 ctoken
-        // let sudt_typescript_code_hash = hex::decode(&self._settings.sudt.code_hash)
-        //     .expect("wrong sudt_script code hash config");
-        // let sudt_typescript = Script::new_builder()
-        //     .code_hash(Byte32::from_slice(&sudt_typescript_code_hash).unwrap())
-        //     .hash_type(DepType::Code.into())
-        //     .args(bridge_lockscript.calc_script_hash().as_bytes().pack())
-        //     .build();
-
         let sudt_typescript = get_sudt_lock_script(
-            &self._settings.bridge_lock_sctipt.code_hash,
-            &self._settings.sudt.code_hash,
+            &self.settings.bridge_lock_sctipt.code_hash,
+            &self.settings.sudt.code_hash,
             token_addr,
         );
 
@@ -428,7 +411,7 @@ impl Generator {
             &mut self.rpc_client,
             &mut self.indexer_client,
             from_lockscript.clone(),
-            &self._genesis_info,
+            &self.genesis_info,
             burn_sudt_amount,
             sudt_typescript.clone(),
         )?;
@@ -438,7 +421,7 @@ impl Generator {
             &mut self.rpc_client,
             &mut self.indexer_client,
             from_lockscript,
-            &self._genesis_info,
+            &self.genesis_info,
             tx_fee,
         )?;
         Ok(tx)
@@ -453,17 +436,16 @@ impl Generator {
         ckb_amount: u64,
         tx_fee: u64,
     ) -> Result<TransactionView, String> {
-        //let ckb_amount: u64 = CapacityParser.parse(&ckb_amount)?.into();
         let mut helper = TxHelper::default();
 
         // add cellDeps
-        let outpoints = vec![self._settings.sudt.outpoint.clone()];
-        self._add_cell_deps(&mut helper, outpoints)?;
+        let outpoints = vec![self.settings.sudt.outpoint.clone()];
+        self.add_cell_deps(&mut helper, outpoints)?;
 
         {
             let sudt_typescript = get_sudt_lock_script(
-                &self._settings.bridge_lock_sctipt.code_hash,
-                &self._settings.sudt.code_hash,
+                &self.settings.bridge_lock_sctipt.code_hash,
+                &self.settings.sudt.code_hash,
                 token_addr,
             );
 
@@ -479,7 +461,7 @@ impl Generator {
                 &mut self.rpc_client,
                 &mut self.indexer_client,
                 from_lockscript.clone(),
-                &self._genesis_info,
+                &self.genesis_info,
                 sudt_amount,
                 sudt_typescript.clone(),
             )?;
@@ -490,7 +472,7 @@ impl Generator {
             &mut self.rpc_client,
             &mut self.indexer_client,
             from_lockscript,
-            &self._genesis_info,
+            &self.genesis_info,
             tx_fee,
         )?;
         Ok(tx)
@@ -500,11 +482,40 @@ impl Generator {
         let addr_lockscript: Script = Address::from_str(&address)?.payload().into();
 
         let sudt_typescript = get_sudt_lock_script(
-            &self._settings.bridge_lock_sctipt.code_hash,
-            &self._settings.sudt.code_hash,
+            &self.settings.bridge_lock_sctipt.code_hash,
+            &self.settings.sudt.code_hash,
             token_addr,
         );
         collect_sudt_amount(&mut self.indexer_client, addr_lockscript, sudt_typescript)
+    }
+
+    pub fn sign_and_send_transaction(
+        &mut self,
+        unsigned_tx: TransactionView,
+        from_privkey: SecretKey,
+    ) -> Result<String> {
+        let tx = sign(unsigned_tx, &mut self.rpc_client, &from_privkey)
+            .map_err(|e| anyhow!("failed to sign tx : {}", e))?;
+        log::info!(
+            "tx: \n{}",
+            serde_json::to_string_pretty(&ckb_jsonrpc_types::TransactionView::from(tx.clone()))?
+        );
+        send_tx_sync(&mut self.rpc_client, &tx, 60).map_err(|e| anyhow!(e))?;
+        // let cell_typescript = tx
+        //     .output(0)
+        //     .ok_or_else(|| anyhow!("first output cell is none"))?
+        //     .type_()
+        //     .to_opt();
+        // let cell_script = match cell_typescript {
+        //     Some(script) => hex::encode(script.as_slice()),
+        //     None => "".to_owned(),
+        // };
+        // let print_res = serde_json::json!({
+        //     "tx_hash": hex::encode(tx.hash().as_slice()),
+        //     "cell_typescript": cell_script,
+        // });
+        // debug!("{}", serde_json::to_string_pretty(&print_res)?);
+        Ok(hex::encode(tx.hash().as_slice()))
     }
 }
 
@@ -513,12 +524,12 @@ pub fn covert_to_h256(mut tx_hash: &str) -> Result<H256> {
         tx_hash = &tx_hash[2..];
     }
     if tx_hash.len() % 2 != 0 {
-        anyhow::bail!(format!("Invalid hex string length: {}", tx_hash.len()))
+        bail!(format!("Invalid hex string length: {}", tx_hash.len()))
     }
     let mut bytes = vec![0u8; tx_hash.len() / 2];
     hex_decode(tx_hash.as_bytes(), &mut bytes)
-        .map_err(|err| anyhow::anyhow!("parse hex string failed: {:?}", err))?;
-    H256::from_slice(&bytes).map_err(|e| anyhow::anyhow!("failed to covert tx hash: {}", e))
+        .map_err(|err| anyhow!("parse hex string failed: {:?}", err))?;
+    H256::from_slice(&bytes).map_err(|e| anyhow!("failed to covert tx hash: {}", e))
 }
 
 pub fn get_sudt_lock_script(
@@ -543,6 +554,12 @@ pub fn get_sudt_lock_script(
         .hash_type(DepType::Code.into())
         .args(bridge_lockscript.calc_script_hash().as_bytes().pack())
         .build()
+}
+
+pub fn parse_privkey(privkey: &SecretKey) -> Script {
+    let public_key = secp256k1::PublicKey::from_secret_key(&SECP256K1, privkey);
+    let address_payload = AddressPayload::from_pubkey(&public_key);
+    Script::from(&address_payload)
 }
 
 pub fn parse_cell(cell: &str) -> Result<Script> {

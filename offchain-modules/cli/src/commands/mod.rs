@@ -6,11 +6,11 @@ use force_eth_lib::relay::eth_relay::ETHRelayer;
 use force_eth_lib::transfer::to_ckb::{
     approve, dev_init, get_header_rlp, lock_eth, lock_token, send_eth_spv_proof_tx,
 };
-use force_eth_lib::transfer::to_eth::{burn, parse_ckb_proof};
+use force_eth_lib::transfer::to_eth::{burn, get_balance, parse_ckb_proof, transfer_sudt};
 use force_eth_lib::util::ckb_util::{ETHSPVProofJson, Generator};
 use force_eth_lib::util::eth_util::convert_eth_address;
 use force_eth_lib::util::settings::Settings;
-use log::debug;
+use log::{debug, info};
 use rusty_receipt_proof_maker::generate_eth_proof;
 use std::convert::TryFrom;
 use types::*;
@@ -37,6 +37,7 @@ pub async fn handler(opt: Opts) -> Result<()> {
         // verify ckb spv proof && unlock erc20 token.
         SubCommand::Unlock(args) => unlock_handler(args),
         SubCommand::TransferFromCkb(args) => transfer_from_ckb_handler(args),
+        SubCommand::QuerySudtBlance(args) => query_sudt_balance_handler(args),
 
         SubCommand::EthRelay(args) => eth_relay_handler(args).await,
         SubCommand::CkbRelay(args) => ckb_relay_handler(args).await,
@@ -182,7 +183,7 @@ pub fn burn_handler(args: BurnArgs) -> Result<()> {
         args.indexer_rpc_url,
         args.config_path,
         args.tx_fee,
-        300,
+        args.amount,
         token_addr,
         receive_addr,
     )?;
@@ -204,8 +205,33 @@ pub fn unlock_handler(args: UnlockArgs) -> Result<()> {
 
 pub fn transfer_from_ckb_handler(args: TransferFromCkbArgs) -> Result<()> {
     debug!("transfer_from_ckb_handler args: {:?}", &args);
+    let token_addr = convert_eth_address(&args.token_addr)?;
+    transfer_sudt(
+        args.private_key_path,
+        args.ckb_rpc_url,
+        args.indexer_rpc_url,
+        args.config_path,
+        args.to_addr,
+        args.tx_fee,
+        args.sudt_amount,
+        token_addr,
+    )?;
+    Ok(())
+}
 
-    todo!()
+pub fn query_sudt_balance_handler(args: SudtGetBalanceArgs) -> Result<()> {
+    debug!("query sudt balance handler args: {:?}", &args);
+    let token_addr = convert_eth_address(&args.token_addr)?;
+
+    let result = get_balance(
+        args.ckb_rpc_url,
+        args.indexer_rpc_url,
+        args.config_path,
+        args.addr,
+        token_addr,
+    )?;
+    info!("sudt balance is {} ", result);
+    Ok(())
 }
 
 pub async fn eth_relay_handler(args: EthRelayArgs) -> Result<()> {
