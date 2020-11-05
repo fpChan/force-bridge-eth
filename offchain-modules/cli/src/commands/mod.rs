@@ -174,7 +174,18 @@ pub fn transfer_to_ckb_handler(args: TransferToCkbArgs) -> Result<()> {
 
 pub fn burn_handler(args: BurnArgs) -> Result<()> {
     debug!("burn_handler args: {:?}", &args);
-    let ckb_tx_hash = burn(args.private_key_path, args.rpc_url)?;
+    let token_addr = convert_eth_address(&args.token_addr)?;
+    let receive_addr = convert_eth_address(&args.receive_addr)?;
+    let ckb_tx_hash = burn(
+        args.private_key_path,
+        args.ckb_rpc_url,
+        args.indexer_rpc_url,
+        args.config_path,
+        args.tx_fee,
+        300,
+        token_addr,
+        receive_addr,
+    )?;
     log::info!("burn erc20 token on ckb. tx_hash: {}", &ckb_tx_hash);
     todo!()
 }
@@ -193,6 +204,7 @@ pub fn unlock_handler(args: UnlockArgs) -> Result<()> {
 
 pub fn transfer_from_ckb_handler(args: TransferFromCkbArgs) -> Result<()> {
     debug!("transfer_from_ckb_handler args: {:?}", &args);
+
     todo!()
 }
 
