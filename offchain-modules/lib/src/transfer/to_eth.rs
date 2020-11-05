@@ -1,18 +1,22 @@
-use crate::util::ckb_util::{covert_to_h256, make_ckb_transaction};
+use crate::util::ckb_util::{covert_to_h256, make_ckb_transaction, Generator};
+use crate::util::settings::Settings;
 use anyhow::anyhow;
 use anyhow::Result;
 use ckb_sdk::rpc::{BlockView, TransactionView};
-use ckb_sdk::{AddressPayload, HttpRpcClient, SECP256K1};
+use ckb_sdk::{Address, AddressPayload, HttpRpcClient, HumanCapacity, SECP256K1};
 use ckb_types::packed::{Byte32, Script};
 use ckb_types::prelude::{Entity, Pack, Unpack};
 use ckb_types::utilities::CBMT;
 use ckb_types::{packed, H256};
-use ethabi::{Function, Param, ParamType};
+use ethabi::{Bytes, Function, Param, ParamType, Token};
+use force_sdk::indexer::IndexerRpcClient;
 use force_sdk::tx_helper::sign;
-use force_sdk::util::{parse_privkey_path, send_tx_sync};
+use force_sdk::util::{ensure_indexer_sync, parse_privkey_path, send_tx_sync};
 use log::debug;
 use serde::export::Clone;
 use serde::{Deserialize, Serialize};
+use std::str::FromStr;
+use web3::types::H160;
 
 // tx_merkle_index == index in transactions merkle tree of the block
 #[derive(Clone, Default, Serialize, Deserialize, PartialEq, Eq, Hash, Debug)]
@@ -25,13 +29,34 @@ pub struct CkbTxProof {
     pub lemmas: Vec<H256>,
 }
 
-pub fn burn(private_key: String, rpc_url: String) -> Result<String> {
+pub fn burn(
+    private_key: String,
+    rpc_url: String,
+    indexer_url: String,
+    config_path: String,
+    tx_fee: String,
+    amount: u128,
+    token_addr: H160,
+    receive_addr: H160,
+) -> Result<String> {
+    let settings = Settings::new(&config_path)?;
+    let mut generator =
+        Generator::new(rpc_url.clone(), indexer_url, settings).map_err(|e| anyhow::anyhow!(e))?;
+    ensure_indexer_sync(&mut generator.rpc_client, &mut generator.indexer_client, 60)
+        .map_err(|e| anyhow::anyhow!("failed to ensure indexer sync : {}", e))?;
+
     let mut rpc_client = HttpRpcClient::new(rpc_url);
     let from_privkey = parse_privkey_path(&private_key)?;
     let from_public_key = secp256k1::PublicKey::from_secret_key(&SECP256K1, &from_privkey);
     let address_payload = AddressPayload::from_pubkey(&from_public_key);
     let from_lockscript = Script::from(&address_payload);
-    let unsigned_tx = make_ckb_transaction(from_lockscript)?;
+    let tx_fee: u64 = HumanCapacity::from_str(&tx_fee)
+        .map_err(|e| anyhow!(e))?
+        .into();
+
+    let unsigned_tx = generator
+        .burn(tx_fee, from_lockscript, amount, token_addr, receive_addr)
+        .map_err(|e| anyhow!("failed to build burn tx : {}", e))?;
     let tx = sign(unsigned_tx, &mut rpc_client, &from_privkey)
         .map_err(|e| anyhow!("failed to sign tx : {}", e))?;
     log::info!(
@@ -136,4 +161,81 @@ pub fn calc_witnesses_root(transactions: Vec<TransactionView>) -> Byte32 {
         .collect::<Vec<Byte32>>();
 
     CBMT::build_merkle_root(leaves.as_ref())
+}
+
+pub fn transfer_sudt(
+    private_key: String,
+    rpc_url: String,
+    indexer_url: String,
+    config_path: String,
+    to_addr: String,
+    tx_fee: u64,
+    transfer_amount: u128,
+    token_addr: H160,
+) -> Result<()> {
+    let settings = Settings::new(&config_path)?;
+    let mut generator =
+        Generator::new(rpc_url.clone(), indexer_url, settings).map_err(|e| anyhow::anyhow!(e))?;
+    let mut rpc_client = HttpRpcClient::new(rpc_url);
+    let from_privkey = parse_privkey_path(&private_key)?;
+    let from_public_key = secp256k1::PublicKey::from_secret_key(&SECP256K1, &from_privkey);
+    let address_payload = AddressPayload::from_pubkey(&from_public_key);
+    let from_lockscript = Script::from(&address_payload);
+
+    ensure_indexer_sync(&mut generator.rpc_client, &mut generator.indexer_client, 60)
+        .map_err(|e| anyhow::anyhow!("failed to ensure indexer sync : {}", e))?;
+
+    let to_lockscript: Script = Address::from_str(&to_addr)
+        .map_err(|e| anyhow::anyhow!("failed to covert address  : {}", e))?
+        .payload()
+        .into();
+    // let ckb_amount = HumanCapacity::from_str(&args.ckb_amount)
+    //     .map_err(|e| anyhow!(e))?
+    //     .into();
+    let unsigned_tx = generator
+        .transfer_sudt(
+            from_lockscript,
+            token_addr,
+            to_lockscript,
+            transfer_amount,
+            200,
+            tx_fee,
+        )
+        .map_err(|e| anyhow!("failed to build transfer token tx: {}", e))?;
+
+    let tx = sign(unsigned_tx, &mut rpc_client, &from_privkey)
+        .map_err(|e| anyhow!("failed to sign tx : {}", e))?;
+    log::info!(
+        "tx: \n{}",
+        serde_json::to_string_pretty(&ckb_jsonrpc_types::TransactionView::from(tx.clone()))?
+    );
+
+    send_tx_sync(&mut rpc_client, &tx, 60).map_err(|e| anyhow::anyhow!(e))?;
+
+    let cell_typescript = tx.output(0).unwrap().type_().to_opt().unwrap();
+    let print_res = serde_json::json!({
+        "tx_hash": hex::encode(tx.hash().as_slice()),
+        "cell_typescript": hex::encode(cell_typescript.as_slice()),
+    });
+    println!("{}", serde_json::to_string_pretty(&print_res)?);
+    Ok(())
+}
+
+pub fn get_balance(
+    rpc_url: String,
+    indexer_url: String,
+    config_path: String,
+    address: String,
+    token_addr: H160,
+) -> Result<()> {
+    let settings = Settings::new(&config_path)?;
+    let mut generator =
+        Generator::new(rpc_url, indexer_url, settings).map_err(|e| anyhow::anyhow!(e))?;
+    ensure_indexer_sync(&mut generator.rpc_client, &mut generator.indexer_client, 60)
+        .map_err(|e| anyhow::anyhow!("failed to ensure indexer sync : {}", e))?;
+    let balance = generator
+        .get_sudt_balance(address.clone(), token_addr)
+        .map_err(|e| anyhow::anyhow!("failed to get balance of {:?}  : {}", address, e))?;
+    println!("{:?}", balance);
+    Ok(())
 }

@@ -88,10 +88,22 @@ pub struct TransferFromCkbArgs {}
 
 #[derive(Clap, Clone, Debug)]
 pub struct BurnArgs {
+    #[clap(long, default_value = "/tmp/.tockb-cli/config.toml")]
+    pub config_path: String,
+    #[clap(long, default_value = "0.1")]
+    pub tx_fee: String,
     #[clap(short = 'k', long)]
     pub private_key_path: String,
     #[clap(long, default_value = "https://localhost:8114")]
-    pub rpc_url: String,
+    pub ckb_rpc_url: String,
+    #[clap(long, default_value = "http://localhost:8545")]
+    pub eth_rpc_url: String,
+    #[clap(long, default_value = "http://localhost:8116")]
+    pub indexer_rpc_url: String,
+    #[clap(long)]
+    pub token_addr: String,
+    #[clap(long)]
+    pub receive_addr: String,
 }
 
 #[derive(Clap, Clone, Debug)]
@@ -122,4 +134,44 @@ pub struct CkbRelayArgs {
     pub eth_rpc_url: String,
     #[clap(long, default_value = "http://localhost:8116")]
     pub indexer_rpc_url: String,
+}
+
+#[derive(Clap, Clone, Debug)]
+pub struct SudtArgs {
+    #[clap(long, default_value = "/tmp/.tockb-cli/config.toml")]
+    pub config_path: String,
+    #[clap(long, default_value = "http://127.0.0.1:8114")]
+    pub rpc_url: String,
+    #[clap(long, default_value = "http://127.0.0.1:8116")]
+    pub indexer_url: String,
+    #[clap(long)]
+    pub token_addr: String,
+    #[clap(subcommand)]
+    pub subcmd: SudtSubCommand,
+}
+
+#[derive(Clap, Clone, Debug)]
+pub enum SudtSubCommand {
+    Transfer(SudtTransferArgs),
+    GetBalance(SudtGetBalanceArgs),
+}
+
+#[derive(Clap, Clone, Debug)]
+pub struct SudtTransferArgs {
+    #[clap(long, default_value = "0.1")]
+    pub tx_fee: String,
+    #[clap(short = 'k', long)]
+    pub private_key_path: String,
+    #[clap(short, long)]
+    pub to_addr: String,
+    #[clap(long)]
+    pub sudt_amount: u128,
+    #[clap(long, default_value = "200")]
+    pub ckb_amount: String,
+}
+
+#[derive(Clap, Clone, Debug)]
+pub struct SudtGetBalanceArgs {
+    #[clap(short, long)]
+    pub addr: String,
 }
