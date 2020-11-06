@@ -398,12 +398,10 @@ impl Generator {
         {
             let eth_recipient_data: Bytes = eth_receiver_addr.as_bytes().to_vec().into();
             // check_capacity(ckb_amount, eth_recipient_data.len())?;
-            // burn cToken 所产生的 eth_recipient cell lock依旧是销毁者
             let eth_recipient_output = CellOutput::new_builder()
                 .capacity(Capacity::shannons(ckb_amount).pack()) // check cap
                 .lock(from_lockscript.clone())
                 .build();
-            // eth_recipient cell data = eth 接受地址
             helper.add_output(eth_recipient_output, eth_recipient_data);
         }
 
@@ -413,7 +411,7 @@ impl Generator {
             from_lockscript.clone(),
             &self.genesis_info,
             burn_sudt_amount,
-            sudt_typescript.clone(),
+            sudt_typescript,
         )?;
 
         // build tx
@@ -463,7 +461,7 @@ impl Generator {
                 from_lockscript.clone(),
                 &self.genesis_info,
                 sudt_amount,
-                sudt_typescript.clone(),
+                sudt_typescript,
             )?;
         }
 
@@ -546,7 +544,6 @@ pub fn get_sudt_lock_script(
         .args(token_addr.as_bytes().pack())
         .build();
 
-    // 通过 type_script 校验 ctoken
     let sudt_typescript_code_hash =
         hex::decode(sudt_code_hash).expect("wrong sudt_script code hash config");
     Script::new_builder()
