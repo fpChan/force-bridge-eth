@@ -8,7 +8,7 @@ use ckb_types::packed::{Byte32, Script};
 use ckb_types::prelude::{Pack, Unpack};
 use ckb_types::utilities::CBMT;
 use ckb_types::{packed, H256};
-use ethabi::{Bytes, Function, Param, ParamType};
+use ethabi::{Function, Param, ParamType};
 use force_sdk::util::{ensure_indexer_sync, parse_privkey_path};
 use log::debug;
 use serde::export::Clone;
