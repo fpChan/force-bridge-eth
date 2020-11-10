@@ -28,3 +28,4 @@ ethereum-tx-sign = "3.0.3"
 ethabi = "12.0.0"
 tokio = { version = "0.2.9", features = ["full"]}
 faster-hex = "0.4"
+molecule = { version = "0.6", default-features = false }

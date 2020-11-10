@@ -3,7 +3,7 @@ use anyhow::Result;
 use ethabi::Token;
 use force_eth_lib::relay::ckb_relay::CKBRelayer;
 use force_eth_lib::transfer::to_ckb::{approve, get_header_rlp, lock_eth, lock_token};
-use force_eth_lib::transfer::to_eth::{burn, get_balance, parse_ckb_proof, transfer_sudt};
+use force_eth_lib::transfer::to_eth::{burn, get_balance, get_ckb_proof_info, transfer_sudt};
 use force_eth_lib::util::eth_util::convert_eth_address;
 use log::{debug, info};
 use types::*;
@@ -149,8 +149,9 @@ pub fn burn_handler(args: BurnArgs) -> Result<()> {
 
 pub fn generate_ckb_proof_handler(args: GenerateCkbProofArgs) -> Result<()> {
     debug!("generate_ckb_proof_handler args: {:?}", &args);
-    let proof = parse_ckb_proof(&args.tx_hash, args.ckb_rpc_url)?;
-    log::info!("ckb tx proof: {:?}", proof);
+    let (header, tx) = get_ckb_proof_info(&args.tx_hash, args.ckb_rpc_url)?;
+    println!("headers : {:?}", header);
+    println!("tx : {:?}", tx);
     Ok(())
 }
 
