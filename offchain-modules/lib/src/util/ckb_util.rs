@@ -24,9 +24,7 @@ use std::convert::{TryFrom, TryInto};
 use std::str::FromStr;
 use web3::types::{Block, BlockHeader};
 
-pub fn make_ckb_transaction(_from_lockscript: Script) -> Result<TransactionView> {
-    todo!()
-}
+
 
 pub struct Generator {
     pub rpc_client: HttpRpcClient,
@@ -73,7 +71,7 @@ impl Generator {
                 &mut self.rpc_client,
                 &mut self.indexer_client,
                 from_lockscript,
-                &self._genesis_info,
+                &self.genesis_info,
                 tx_fee,
             )
             .map_err(|err| anyhow!(err))?;
@@ -123,7 +121,7 @@ impl Generator {
                 OutPoint::from(cell.clone().out_point),
                 None,
                 &mut get_live_cell_fn,
-                &self._genesis_info,
+                &self.genesis_info,
                 true,
             )
             .map_err(|err| anyhow!(err))?;
@@ -167,7 +165,7 @@ impl Generator {
                 &mut self.rpc_client,
                 &mut self.indexer_client,
                 from_lockscript,
-                &self._genesis_info,
+                &self.genesis_info,
                 tx_fee,
             )
             .map_err(|err| anyhow!(err))?;
@@ -235,7 +233,7 @@ impl Generator {
                     OutPoint::from(cell.out_point),
                     None,
                     &mut get_live_cell_fn,
-                    &self._genesis_info,
+                    &self.genesis_info,
                     true,
                 )
                 .map_err(|err| anyhow!(err))?;
@@ -292,7 +290,7 @@ impl Generator {
                 &mut self.rpc_client,
                 &mut self.indexer_client,
                 from_lockscript,
-                &self._genesis_info,
+                &self.genesis_info,
                 tx_fee,
             )
             .map_err(|err| anyhow!(err))?;
@@ -333,7 +331,7 @@ impl Generator {
         cell_typescript: Script,
         // add_to_input: bool,
     ) -> Result<(CellOutput, Bytes), String> {
-        // let genesis_info = self._genesis_info.clone();
+        // let genesis_info = self.genesis_info.clone();
         let cell = get_live_cell_by_typescript(&mut self.indexer_client, cell_typescript)?
             .ok_or("cell not found")?;
         let ckb_cell = CellOutput::from(cell.output);
@@ -380,15 +378,15 @@ impl Generator {
         // add cellDeps
         {
             let outpoints = vec![
-                self.settings.bridge_lock_sctipt.outpoint.clone(),
-                // self._settings.typescript.outpoint,
+                self.settings.bridge_lockscript.outpoint.clone(),
+                self.settings.bridge_typescript.outpoint.clone(),
                 self.settings.sudt.outpoint.clone(),
             ];
             self.add_cell_deps(&mut helper, outpoints)?;
         }
 
         let sudt_typescript = get_sudt_lock_script(
-            &self.settings.bridge_lock_sctipt.code_hash,
+            &self.settings.bridge_lockscript.code_hash,
             &self.settings.sudt.code_hash,
             token_addr,
         );
@@ -442,7 +440,7 @@ impl Generator {
 
         {
             let sudt_typescript = get_sudt_lock_script(
-                &self.settings.bridge_lock_sctipt.code_hash,
+                &self.settings.bridge_lockscript.code_hash,
                 &self.settings.sudt.code_hash,
                 token_addr,
             );
@@ -480,7 +478,7 @@ impl Generator {
         let addr_lockscript: Script = Address::from_str(&address)?.payload().into();
 
         let sudt_typescript = get_sudt_lock_script(
-            &self.settings.bridge_lock_sctipt.code_hash,
+            &self.settings.bridge_lockscript.code_hash,
             &self.settings.sudt.code_hash,
             token_addr,
         );

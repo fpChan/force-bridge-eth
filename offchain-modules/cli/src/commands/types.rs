@@ -52,6 +52,8 @@ pub struct DevInitArgs {
         default_value = "../ckb-contracts/build/release/eth-light-client-typescript"
     )]
     pub light_client_typescript_path: String,
+    #[clap(long, default_value = "../build/release/eth_recipient_typescript")]
+    pub eth_recipient_typescript_path: String,
     #[clap(long, default_value = "cli/deps/simple_udt")]
     pub sudt_path: String,
 }

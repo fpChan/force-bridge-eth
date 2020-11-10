@@ -17,6 +17,7 @@ use serde::export::Clone;
 use std::str::FromStr;
 use web3::types::H160;
 
+#[allow(clippy::too_many_arguments)]
 pub fn burn(
     privkey_path: String,
     rpc_url: String,
@@ -150,6 +151,7 @@ pub fn calc_witnesses_root(transactions: Vec<TransactionView>) -> Byte32 {
     CBMT::build_merkle_root(leaves.as_ref())
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn transfer_sudt(
     privkey_path: String,
     rpc_url: String,

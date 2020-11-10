@@ -59,6 +59,7 @@ pub fn dev_init_handler(args: DevInitArgs) -> Result<()> {
         args.bridge_typescript_path,
         args.bridge_lockscript_path,
         args.light_client_typescript_path,
+        args.eth_recipient_typescript_path,
         args.sudt_path,
     )
 }
