@@ -1,31 +1,21 @@
+use crate::util::ckb_types::CkbTxProof;
 use crate::util::ckb_util::{covert_to_h256, parse_privkey, Generator};
+use crate::util::generated::ckb_tx_proof;
 use crate::util::settings::Settings;
 use anyhow::anyhow;
 use anyhow::Result;
 use ckb_sdk::rpc::{BlockView, TransactionView};
 use ckb_sdk::{Address, HttpRpcClient, HumanCapacity};
 use ckb_types::packed::{Byte32, Script};
-use ckb_types::prelude::{Pack, Unpack};
+use ckb_types::prelude::{Entity, Pack, Unpack};
 use ckb_types::utilities::CBMT;
 use ckb_types::{packed, H256};
 use ethabi::{Function, Param, ParamType};
 use force_sdk::util::{ensure_indexer_sync, parse_privkey_path};
-use log::debug;
+use log::{debug, info};
 use serde::export::Clone;
-use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 use web3::types::H160;
-
-// tx_merkle_index == index in transactions merkle tree of the block
-#[derive(Clone, Default, Serialize, Deserialize, PartialEq, Eq, Hash, Debug)]
-pub struct CkbTxProof {
-    pub tx_merkle_index: u16,
-    pub block_number: u64,
-    pub block_hash: H256,
-    pub tx_hash: H256,
-    pub witnesses_root: H256,
-    pub lemmas: Vec<H256>,
-}
 
 pub fn burn(
     privkey_path: String,
@@ -72,6 +62,27 @@ pub fn get_add_ckb_headers_func() -> Function {
         outputs: vec![],
         constant: false,
     }
+}
+
+pub fn get_ckb_proof_info(tx_hash_str: &str, rpc_url: String) -> Result<(String, String)> {
+    let tx_hash = covert_to_h256(tx_hash_str)?;
+    let mut rpc_client = HttpRpcClient::new(rpc_url.clone());
+    let tx: packed::Transaction = rpc_client
+        .get_transaction(tx_hash)
+        .map_err(|e| anyhow!("failed to sign tx : {}", e))?
+        .ok_or_else(|| anyhow!("failed to sign tx : {}"))?
+        .transaction
+        .inner
+        .into();
+
+    let mol_hex_tx = hex::encode(tx.raw().as_slice());
+    info!("mol hex raw tx : {:?} ", mol_hex_tx);
+
+    let ckb_tx_proof = parse_ckb_proof(tx_hash_str, rpc_url)?;
+    let mol_tx_proof: ckb_tx_proof::CkbTxProof = ckb_tx_proof.into();
+    let mol_hex_header = hex::encode(mol_tx_proof.as_bytes().as_ref());
+    info!("mol hex header: {:?} ", mol_hex_header);
+    Ok((mol_hex_header, mol_hex_tx))
 }
 
 pub fn parse_ckb_proof(tx_hash_str: &str, rpc_url: String) -> Result<CkbTxProof> {

@@ -6,7 +6,7 @@ use force_eth_lib::relay::eth_relay::ETHRelayer;
 use force_eth_lib::transfer::to_ckb::{
     approve, dev_init, get_header_rlp, lock_eth, lock_token, send_eth_spv_proof_tx,
 };
-use force_eth_lib::transfer::to_eth::{burn, get_balance, parse_ckb_proof, transfer_sudt};
+use force_eth_lib::transfer::to_eth::{burn, get_balance, get_ckb_proof_info, transfer_sudt};
 use force_eth_lib::util::ckb_util::{ETHSPVProofJson, Generator};
 use force_eth_lib::util::eth_util::convert_eth_address;
 use force_eth_lib::util::settings::Settings;
@@ -193,8 +193,9 @@ pub fn burn_handler(args: BurnArgs) -> Result<()> {
 
 pub fn generate_ckb_proof_handler(args: GenerateCkbProofArgs) -> Result<()> {
     debug!("generate_ckb_proof_handler args: {:?}", &args);
-    let proof = parse_ckb_proof(&args.tx_hash, args.ckb_rpc_url)?;
-    log::info!("ckb tx proof: {:?}", proof);
+    let (header, tx) = get_ckb_proof_info(&args.tx_hash, args.ckb_rpc_url)?;
+    println!("headers : {:?}", header);
+    println!("tx : {:?}", tx);
     Ok(())
 }
 
