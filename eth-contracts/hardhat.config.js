@@ -1,6 +1,7 @@
 require("@nomiclabs/hardhat-truffle5");
 require("@nomiclabs/hardhat-waffle");
 require("hardhat-gas-reporter");
+require("@nomiclabs/hardhat-etherscan");
 
 require('dotenv').config()
 
@@ -58,7 +59,7 @@ module.exports = {
         hardhat: {},
         ropsten: {
             url: `${process.env.ROPSTEN_API ? process.env.ROPSTEN_API : "https://ropsten.infura.io/v3/3ed3eadf912c4b31b800aafeedbf79eb"}`,
-            accounts: [`${process.env.ROPSTEN_DEPLOYER_PRIVATE_KEY ? process.env.ROPSTEN_DEPLOYER_PRIVATE_KEY : "0xc4ad657963930fbff2e9de3404b30a4e21432c89952ed430b56bf802945ed37a"}`]
+            accounts: ["0xc4ad657963930fbff2e9de3404b30a4e21432c89952ed430b56bf802945ed37a"]
         },
         kovan: {
             url: `${process.env.KOVAN_API ? process.env.KOVAN_API : "https://kovan.infura.io/v3/3ed3eadf912c4b31b800aafeedbf79eb"}`,
@@ -76,6 +77,12 @@ module.exports = {
             // Mnemonic [`live blush purchase cheap obey spare purchase depend remain truly slush assist`]
             accounts: [`0x719e94ec5d2ecef67b5878503ffd6e1e0e2fe7a52ddd55c436878cb4d52d376d`],
         }
+    },
+
+    etherscan: {
+        // Your API key for Etherscan
+        // Obtain one at https://etherscan.io/
+        apiKey: process.env.ETHERSCAN_API_KEY ? process.env.ETHERSCAN_API_KEY : ""
     },
 
     paths: {

@@ -24,6 +24,11 @@ integration-ci: demo-build
 	bash demo/demo.sh
 	cd docker && docker-compose stop
 
+integration-ci-ropsten: demo-build
+	cd docker && docker-compose up -d
+	bash demo/demo_ropsten.sh
+	cd docker && docker-compose stop
+
 demo-clear:
 	rm -rf demo/{bin,contracts,data,.force-bridge-cli-config.toml}
 
