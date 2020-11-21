@@ -17,6 +17,7 @@ demo-build:
 	cp offchain-modules/cli/deps/simple_udt demo/contracts
 	cp -r offchain-modules/vendor demo
 	cp offchain-modules/data/dag_merkle_roots.json demo/data/dag_merkle_roots.json
+	cd offchain-modules/eth-proof && yarn
 	cp -r offchain-modules/eth-proof demo
 	cd offchain-modules && cargo build #--release
 	cp offchain-modules/target/debug/force-eth-cli demo/bin

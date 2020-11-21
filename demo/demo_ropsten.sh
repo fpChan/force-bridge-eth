@@ -21,7 +21,7 @@ ${FORCE_CLI} dev-init -f
 
 cd "$DIR"/eth-contracts
 export FORCE_CONFIG_PATH="${DIR}"/demo/.force-bridge-cli-config.toml
-#npx hardhat run scripts/geth/deployAll.js --network ropsten > "${FORTH_ETH_CONFIG_PATH}"
+npx hardhat run scripts/geth/deployAll.js --network ropsten > "${FORTH_ETH_CONFIG_PATH}"
 ETH_RPC_URL="https://ropsten.infura.io/v3/3ed3eadf912c4b31b800aafeedbf79eb"
 TOKEN_LOCKER_ADDRESS=$(tail -1 ${FORTH_ETH_CONFIG_PATH} | jq -r .tokenLocker)
 CKB_CHAIN_ADDRESS=$(tail -1 ${FORTH_ETH_CONFIG_PATH} | jq -r .ckbChain)
