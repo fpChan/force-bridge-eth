@@ -42,7 +42,7 @@ async fn eth_indexer(args: EthIndexerArgs) -> Result<()> {
     loop {
         let res = eth_indexer.start().await;
         if let Err(err) = res {
-            log::error!("An error occurred during the eth_indexer. Err: {:?}", err)
+            log::warn!("An error occurred during the eth_indexer. Err: {:?}", err)
         }
         tokio::time::delay_for(std::time::Duration::from_secs(10)).await;
     }
@@ -53,7 +53,7 @@ async fn ckb_indexer(args: CkbIndexerArgs) -> Result<()> {
     loop {
         let res = ckb_indexer.start().await;
         if let Err(err) = res {
-            log::error!("An error occurred during the ckb_indexer. Err: {:?}", err)
+            log::warn!("An error occurred during the ckb_indexer. Err: {:?}", err)
         }
         tokio::time::delay_for(std::time::Duration::from_secs(10)).await;
     }

@@ -16,7 +16,7 @@ use force_eth_lib::util::ckb_util::parse_privkey_path;
 use force_eth_lib::util::config::{self, ForceConfig};
 use force_eth_lib::util::eth_util::{convert_eth_address, parse_private_key};
 use force_eth_lib::util::transfer;
-use log::{debug, error, info};
+use log::{debug, info, warn};
 use serde_json::json;
 use shellexpand::tilde;
 use types::*;
@@ -390,7 +390,7 @@ pub async fn eth_relay_handler(args: EthRelayArgs) -> Result<()> {
     loop {
         let res = eth_relayer.start().await;
         if let Err(err) = res {
-            error!("An error occurred during the eth relay. Err: {:?}", err)
+            warn!("An error occurred during the eth relay. Err: {:?}", err)
         }
         tokio::time::delay_for(std::time::Duration::from_secs(1)).await;
     }
@@ -450,7 +450,7 @@ pub async fn ckb_relay_handler(args: CkbRelayArgs) -> Result<()> {
             )
             .await;
         if let Err(err) = res {
-            error!("An error occurred during the ckb relay. Err: {:?}", err);
+            warn!("An error occurred during the ckb relay. Err: {:?}", err);
             consecutive_failures += 1;
         } else {
             consecutive_failures = 0;
@@ -492,7 +492,7 @@ pub async fn relayer_monitor(args: RelayerMonitorArgs) -> Result<()> {
     loop {
         let res = relay_monitor.start().await;
         if let Err(err) = res {
-            error!("An error occurred during the relay monitor. Err: {:?}", err)
+            warn!("An error occurred during the relay monitor. Err: {:?}", err)
         }
         tokio::time::delay_for(std::time::Duration::from_secs(args.minute_interval * 60)).await;
     }

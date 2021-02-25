@@ -104,14 +104,14 @@ impl CkbTxRelay {
                 v = task_future => {
                     for res in v.iter() {
                        match res {
-                          Ok(hash) => info!("unlock hash : {}", hash),
-                          Err(error) => error!("unlock error : {:?}", error),
+                          Ok(hash) => info!("unlock token success. eth tx hash : {}", hash),
+                          Err(error) => error!("failed to unlock token. error : {:?}", error),
                     }
                   }
                   info!("unlock {} txs elapsed {:?}", unlock_count, now.elapsed());
                }
                 _ = timeout_future => {
-                    error!("batch relay ckb tx timeout");
+                    error!("batch relay ckb tx timeout. the time is {:?} second.",1800);
                 }
             }
         }

@@ -2,7 +2,7 @@ use crate::util::config::ForceConfig;
 use anyhow::{anyhow, bail, Result};
 use ethabi::{FixedBytes, Function, Param, ParamType, Token, Uint};
 use ethereum_tx_sign::RawTransaction;
-use log::{debug, error, info};
+use log::{debug, info, warn};
 use rlp::{DecoderError, Rlp, RlpStream};
 use secp256k1::{PublicKey, Secp256k1, SecretKey};
 use serde_json::Value;
@@ -306,7 +306,7 @@ pub async fn relay_header_transaction(url: String, signed_tx: Vec<u8>) -> Result
             "failed to relay headers. tx_hash: {} , tx_status : {}",
             hex_tx_hash, tx_status,
         );
-        error!("{:?}", msg);
+        warn!("{:?}", msg);
         bail!("{:?}", msg);
     }
     Ok(())

@@ -70,7 +70,7 @@ impl EthTxRelayer {
         loop {
             let res = self.relay(last_relayed_number).await;
             if let Err(e) = res {
-                log::error!("encountered an error when relay eth tx: {:?}", e);
+                log::warn!("an error occurred during relay eth tx: {:?}", e);
             } else {
                 last_relayed_number = res.unwrap();
             }
@@ -112,7 +112,7 @@ impl EthTxRelayer {
             let res_all = join_all(mint_futures).await;
             for res in res_all.iter() {
                 if let Err(error) = res {
-                    log::error!("mint error : {:?}", error);
+                    log::error!("failed to mint. error : {:?}", error);
                 }
             }
             log::info!("mint {} txs elapsed {:?}", mint_count, now.elapsed());

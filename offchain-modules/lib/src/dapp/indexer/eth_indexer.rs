@@ -94,7 +94,7 @@ impl<T: IndexerFilter> EthIndexer<T> {
                     return number;
                 }
                 Err(err) => {
-                    log::error!("failed to get light client height.Err: {:?}", err);
+                    log::warn!("failed to get light client height.more info : {:?}", err);
                     tokio::time::delay_for(std::time::Duration::from_secs(10)).await;
                 }
             }
